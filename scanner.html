@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan QRIS dengan Deteksi</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f5f5f5;
+        }
+        #preview {
+            width: 300px;
+            height: 300px;
+            border: 5px solid #3498db;
+            margin-top: 20px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        canvas {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Scan QRIS</h1>
+    
+    <video id="preview"></video>
+    <br>
+    <button id="start-scan-back">Scan dengan Kamera Belakang</button>
+    <button id="start-scan-front">Scan dengan Kamera Depan</button>
+    
+    <canvas id="canvas"></canvas>
+    <p id="result">Hasil QR Code akan tampil di sini.</p>
+
+    <!-- jsQR Library dari CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+    <script>
+        const startScanBackButton = document.getElementById('start-scan-back');
+        const startScanFrontButton = document.getElementById('start-scan-front');
+        const preview = document.getElementById('preview');
+        const canvas = document.getElementById('canvas');
+        const resultElement = document.getElementById('result');
+        const context = canvas.getContext('2d');
+
+        let stream;
+
+        // Fungsi untuk memulai pemindaian menggunakan kamera yang dipilih
+        async function startScan(facingMode) {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+
+            try {
+                // Akses kamera dengan pilihan depan atau belakang
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: facingMode }
+                });
+                preview.srcObject = stream;
+                preview.play();
+
+                scanQRCode();
+            } catch (err) {
+                alert('Error accessing camera: ' + err.message);
+            }
+        }
+
+        // Event listener untuk tombol kamera belakang
+        startScanBackButton.addEventListener('click', () => {
+            startScan('environment');
+        });
+
+        // Event listener untuk tombol kamera depan
+        startScanFrontButton.addEventListener('click', () => {
+            startScan('user');
+        });
+
+        function scanQRCode() {
+            // Set ukuran canvas sesuai dengan ukuran video
+            canvas.width = preview.videoWidth;
+            canvas.height = preview.videoHeight;
+
+            const interval = setInterval(() => {
+                // Gambar video pada canvas
+                context.drawImage(preview, 0, 0, canvas.width, canvas.height);
+
+                // Ambil data dari canvas
+                const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+
+                // Deteksi QR code menggunakan jsQR
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                if (code) {
+                    // Tampilkan hasil QR code
+                    resultElement.textContent = `Hasil QR Code: ${code.data}`;
+                    
+                    // Berhenti scan setelah menemukan QR code
+                    clearInterval(interval);
+
+                    // Hentikan stream video
+                    stream.getTracks().forEach(track => track.stop());
+                }
+            }, 500); // Scan setiap 500ms
+        }
+    </script>
+</body>
+</html>
