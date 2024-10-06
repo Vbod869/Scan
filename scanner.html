@@ -74,6 +74,15 @@
             }
         }
 
+        stream = await navigator.mediaDevices.getUserMedia({
+    video: { 
+        facingMode: facingMode,
+        width: { ideal: 1280 },  // Resolusi yang lebih tinggi
+        height: { ideal: 720 }   // Resolusi yang lebih tinggi
+    }
+});
+
+
         // Event listener untuk tombol kamera belakang
         startScanBackButton.addEventListener('click', () => {
             startScan('environment');
@@ -99,16 +108,25 @@
                 // Deteksi QR code menggunakan jsQR
                 const code = jsQR(imageData.data, imageData.width, imageData.height);
 
-                if (code) {
-                    // Tampilkan hasil QR code
-                    resultElement.textContent = `Hasil QR Code: ${code.data}`;
-                    
-                    // Berhenti scan setelah menemukan QR code
-                    clearInterval(interval);
+                function scanQRCode() {
+                    preview.addEventListener('loadeddata', () => {
+                        canvas.width = preview.videoWidth;
+                        canvas.height = preview.videoHeight;
 
-                    // Hentikan stream video
-                    stream.getTracks().forEach(track => track.stop());
+                        const interval = setInterval(() => {
+                            context.drawImage(preview, 0, 0, canvas.width, canvas.height);
+                            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                            const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                            if (code) {
+                                resultElement.textContent = `Hasil QR Code: ${code.data}`;
+                                clearInterval(interval);
+                                stream.getTracks().forEach(track => track.stop());
+                            }
+                        }, 500);
+                    });
                 }
+
             }, 500); // Scan setiap 500ms
         }
     </script>
